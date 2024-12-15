@@ -1,1 +1,1 @@
-# option-pricing-app
+# Option Pricing App
