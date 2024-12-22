@@ -1,65 +1,51 @@
-import datetime
-import pandas as pd
+import datetime as dt
 import numpy as np
 import matplotlib.pyplot as plt
-import datetime as dt
-from pandas_datareader import data as pdr
-import math
-import scipy.stats as stats
 import yfinance as yf
 
-# TODO: refactor these two functions so that we get data once only and passes down to these params
 
-# functions to get data and mean and covariance
-def get_mean_returns(stocks, start, end):
+# Refactored function to fetch data once and compute required metrics
+def get_stock_data(stocks, start, end):
     data = yf.download(stocks, start=start, end=end)
     mean_returns = data['Close'].pct_change().mean()
-    return mean_returns
-
-
-def get_cov_matrix(stocks, start, end):
-    data = yf.download(stocks, start=start, end=end)
     cov_matrix = data['Close'].pct_change().cov()
-    return cov_matrix
+    return mean_returns, cov_matrix
 
 
 # Input params
-stock_list = ['CBA', 'BHP', 'TLS', 'NAB', 'WBC', 'STO']
+# stock_list = ['CBA', 'BHP', 'TLS', 'NAB', 'WBC', 'STO']
+stock_list = ['CBA']
 stocks = [stock + '.AX' for stock in stock_list]
 end_date = dt.datetime.now()
 start_date = end_date - dt.timedelta(days=300)
 
-mean_returns = get_mean_returns(stocks, start_date, end_date)
-cov_matrix = get_cov_matrix(stocks, start_date, end_date)
+# Fetch mean returns and covariance matrix
+mean_returns, cov_matrix = get_stock_data(stocks, start_date, end_date)
 
-# Generate random weights then normalize
-
+# Generate random weights and normalize
 weights = np.random.random(len(mean_returns))
-weights = weights / np.sum(weights)
+weights /= np.sum(weights)
 
 # Monte Carlo Method implementation
-
 mc_sims = 100  # number of simulations
 T = 100  # number of days
 initial_port_value = 10000
-mean_matrix = np.full(shape=(T, len(weights)), fill_value=mean_returns)
-mean_matrix = mean_matrix.T
-portfolio_sims = np.full(shape=(T, mc_sims), fill_value=0.0)
+
+# Create a mean matrix and portfolio simulations matrix
+mean_matrix = np.tile(mean_returns.values, (T, 1)).T  # Shape: (6, T)
+portfolio_sims = np.zeros((T, mc_sims))
 
 # Main loop
-# Assumes mean returns are distributed by multivariate distribution
-
-print(mean_returns.shape)
-print(mean_returns)
-
-for m in range(0, mc_sims):
-    Z = np.random.normal(size=(T, len(weights)))
+for m in range(mc_sims):
+    Z = np.random.normal(size=(T, len(weights))).T  # Shape: (6, T)
     L = np.linalg.cholesky(cov_matrix)
-    daily_returns = mean_returns + np.inner(L, Z)
-    portfolio_sims[:, m] = np.cumprod(np.inner(weights, daily_returns.T) + 1) * initial_port_value
+    daily_returns = mean_matrix + np.dot(L, Z)  # Shape: (6, T)
+    portfolio_sims[:, m] = np.cumprod(np.dot(weights, daily_returns) + 1) * initial_port_value
 
+# Plot the results
 plt.plot(portfolio_sims)
 plt.ylabel("Portfolio returns in $")
 plt.xlabel("Days")
-plt.title("Monte Carlo Simulation of stock portfolio")
+plt.title("Monte Carlo Simulation of Stock Portfolio")
 plt.show()
+
