@@ -27,13 +27,11 @@ nudt = (r - 0.5 * vol ** 2) * dt
 volsdt = vol * np.sqrt(dt)
 lnS = np.log(S)
 
-
-# standard error place holders
-
-
-def call_calculator(lnS, nudt, volsdt, M, N, K, T, r):
+def call_calculator(lnS, nudt, volsdt, K, T, r):
     sum_CT = 0
     sum_CT2 = 0
+    M = 1000
+    N = 10
 
     # Monte Carlo Method
     for i in range(M):
@@ -57,5 +55,31 @@ def call_calculator(lnS, nudt, volsdt, M, N, K, T, r):
 
     return call_value, standard_error
 
+def put_calculator(lnS, nudt, volsdt, K, T, r):
+    sum_PT = 0
+    sum_PT2 = 0
+    M = 1000
+    N = 10
 
-C, SE = call_calculator(lnS, nudt, volsdt, M, N, K, T, r)
+    # Monte Carlo Method
+    for i in range(M):
+        lnSt = lnS
+        for j in range(N):
+            lnSt = lnSt + nudt + volsdt * np.random.normal()
+
+        ST = np.exp(lnSt)
+        PT = max(0, K - ST)  # Payoff for a put option
+        sum_PT = sum_PT + PT
+        sum_PT2 = sum_PT2 + PT ** 2
+
+    # Calculate Put Value
+    P0 = np.exp(-r * T) * sum_PT / M
+    put_value = np.round(P0, 2)
+
+    # Calculate standard error
+    std = np.sqrt((sum_PT2 - sum_PT * sum_PT / M) * np.exp(-2 * r * T) / (M - 1))
+    standard_error = std / np.sqrt(M)
+    standard_error = np.round(standard_error, 2)
+
+    return put_value, standard_error
+
